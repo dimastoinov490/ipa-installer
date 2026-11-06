@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Blue rounded background container -->
+    <path
+        android:pathData="M 32 24 C 27.58 24 24 27.58 24 32 L 24 76 C 24 80.42 27.58 84 32 84 L 76 84 C 80.42 84 84 80.42 84 76 L 84 32 C 84 27.58 80.42 24 76 24 Z"
+        android:fillColor="#007AFF" />
+    <!-- Downward install arrow and tray inside -->
+    <path
+        android:pathData="M 54 36 L 54 58 M 43 49 L 54 60 L 65 49"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M 38 66 L 38 72 L 70 72 L 70 66"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

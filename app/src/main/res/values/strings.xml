@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">IPA Installer</string>
+    <string name="server_title">iOS OTA HTTPS Server</string>
+    <string name="server_status_running">Server Online</string>
+    <string name="server_status_stopped">Server Offline</string>
+    <string name="start_server">Start Server</string>
+    <string name="stop_server">Stop Server</string>
+    <string name="import_ipa">Import .IPA</string>
+    <string name="generate_test_ipa">Create Test IPA</string>
+    <string name="no_ipas_yet">No IPA files added yet. Import your pre-signed .ipa files to start wireless installation.</string>
+</resources>
