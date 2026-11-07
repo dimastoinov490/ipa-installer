@@ -82,13 +82,23 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ipainstaller.ui.components.InstructionsDialog
 import com.ipainstaller.ui.components.IpaCard
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.filled.VpnKey
+import com.ipainstaller.ui.screens.AppleIntegrationScreen
 import com.ipainstaller.ui.components.QrCodeDialog
 import com.ipainstaller.ui.components.ServerLogsView
+import androidx.compose.foundation.BorderStroke
 import com.ipainstaller.ui.theme.AppleBlue
 import com.ipainstaller.ui.theme.AppleGreen
 import com.ipainstaller.ui.theme.AppleOrange
+import com.ipainstaller.ui.theme.ApplePurple
 import com.ipainstaller.ui.theme.AppleRed
 import com.ipainstaller.ui.theme.IPAInstallerTheme
+
+enum class Screen {
+    SERVER,
+    APPLE_INTEGRATION
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -107,9 +117,20 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(viewModel: IpaServerViewModel = viewModel()) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    var currentScreen by remember { mutableStateOf(Screen.SERVER) }
 
     LaunchedEffect(Unit) {
         viewModel.initialize(context)
+    }
+
+    if (currentScreen == Screen.APPLE_INTEGRATION) {
+        BackHandler {
+            currentScreen = Screen.SERVER
+        }
+        AppleIntegrationScreen(
+            onNavigateBack = { currentScreen = Screen.SERVER }
+        )
+        return
     }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -148,6 +169,16 @@ fun MainScreen(viewModel: IpaServerViewModel = viewModel()) {
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = { currentScreen = Screen.APPLE_INTEGRATION },
+                        modifier = Modifier.testTag("open_apple_integration_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VpnKey,
+                            contentDescription = "Apple & GitHub CI/CD Secrets",
+                            tint = AppleBlue
+                        )
+                    }
                     IconButton(
                         onClick = { viewModel.refreshNetworkAddresses(context) },
                         modifier = Modifier.testTag("refresh_network_btn")
@@ -201,6 +232,69 @@ fun MainScreen(viewModel: IpaServerViewModel = viewModel()) {
                         viewModel.showQrDialog(caUrl)
                     }
                 )
+            }
+
+            // 2b. GitHub Actions CI/CD Secrets Banner
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { currentScreen = Screen.APPLE_INTEGRATION }
+                        .testTag("cicd_secrets_banner"),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = ApplePurple.copy(alpha = 0.12f)
+                    ),
+                    border = BorderStroke(1.dp, ApplePurple.copy(alpha = 0.3f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(ApplePurple.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.VpnKey,
+                                    contentDescription = null,
+                                    tint = ApplePurple,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Apple & GitHub CI/CD Secrets",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Export Base64 .p12 & .mobileprovision",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = { currentScreen = Screen.APPLE_INTEGRATION },
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Configure", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
             }
 
             // 3. IPA Management Header
