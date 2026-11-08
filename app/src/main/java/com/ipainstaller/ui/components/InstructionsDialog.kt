@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.ipainstaller.AppLocale
 import com.ipainstaller.ui.theme.AppleBlue
 import com.ipainstaller.ui.theme.AppleOrange
 
@@ -92,7 +93,7 @@ fun InstructionsDialog(
                             )
                         }
                         Text(
-                            text = "iOS OTA Security Setup",
+                            text = AppLocale.t("Настройка SSL для iOS OTA", "iOS OTA Security Setup"),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -104,7 +105,7 @@ fun InstructionsDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Close"
+                            contentDescription = AppLocale.t("Закрыть", "Close")
                         )
                     }
                 }
@@ -112,7 +113,10 @@ fun InstructionsDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "Apple's itms-services protocol requires a trusted HTTPS server to install apps directly to the iOS Home Screen. Follow these steps once per iPhone:",
+                    text = AppLocale.t(
+                        "Протокол Apple itms-services требует доверенного HTTPS соединения. Выполните эти шаги один раз для вашего iPhone:",
+                        "Apple's itms-services protocol requires a trusted HTTPS server to install apps directly to the iOS Home Screen. Follow these steps once per iPhone:"
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -122,38 +126,56 @@ fun InstructionsDialog(
                 // Steps
                 InstructionStep(
                     stepNumber = "1",
-                    title = "Connect to Same Local Network",
-                    description = "Ensure both this Android device and the target iPhone are connected to the same Wi-Fi router or Android Hotspot."
+                    title = AppLocale.t("Подключитесь к одной сети", "Connect to Same Local Network"),
+                    description = AppLocale.t(
+                        "Убедитесь, что Android и iPhone подключены к одному Wi-Fi роутеру или точке доступа Android.",
+                        "Ensure both this Android device and the target iPhone are connected to the same Wi-Fi router or Android Hotspot."
+                    )
                 )
 
                 InstructionStep(
                     stepNumber = "2",
-                    title = "Open Safari to the Local Server",
-                    description = "On your iPhone, launch Safari and enter $serverUrl (or scan the QR Code on this screen)."
+                    title = AppLocale.t("Откройте Safari", "Open Safari to the Local Server"),
+                    description = AppLocale.t(
+                        "На iPhone откройте Safari и перейдите по адресу $serverUrl (или отсканируйте QR код).",
+                        "On your iPhone, launch Safari and enter $serverUrl (or scan the QR Code on this screen)."
+                    )
                 )
 
                 InstructionStep(
                     stepNumber = "3",
-                    title = "Download Root CA Profile",
-                    description = "Tap 'Download CA Profile' on the web page. When Safari asks 'This website is trying to download a configuration profile. Do you want to allow this?', tap Allow."
+                    title = AppLocale.t("Скачайте профиль CA", "Download Root CA Profile"),
+                    description = AppLocale.t(
+                        "Нажмите кнопку 'SSL Профиль' вверху страницы. В диалоге выберите 'Разрешить'.",
+                        "Tap 'SSL Profile' at the top of the web page. When Safari prompts to download a profile, tap Allow."
+                    )
                 )
 
                 InstructionStep(
                     stepNumber = "4",
-                    title = "Install Profile in iPhone Settings",
-                    description = "Open iPhone Settings &rarr; Tap 'Profile Downloaded' near the top &rarr; Tap Install in the top right &rarr; Enter your passcode &rarr; Tap Install."
+                    title = AppLocale.t("Установите профиль в Настройках", "Install Profile in iPhone Settings"),
+                    description = AppLocale.t(
+                        "Откройте Настройки iPhone &rarr; 'Профиль загружен' &rarr; 'Установить' &rarr; введите пароль &rarr; 'Установить'.",
+                        "Open iPhone Settings &rarr; Tap 'Profile Downloaded' &rarr; Tap Install &rarr; Enter passcode &rarr; Tap Install."
+                    )
                 )
 
                 InstructionStep(
                     stepNumber = "5",
-                    title = "Enable Full Trust for Root Certificate",
-                    description = "In iPhone Settings, go to General &rarr; About &rarr; scroll to bottom &rarr; Certificate Trust Settings &rarr; Toggle 'IPA Installer Local CA' to ON &rarr; Tap Continue."
+                    title = AppLocale.t("Включите полное доверие сертификату", "Enable Full Trust for Root Certificate"),
+                    description = AppLocale.t(
+                        "В Настройках: Основные &rarr; Об этом устройстве &rarr; Доверие сертификатов (внизу) &rarr; включите тумблер 'IPA Installer Local CA'.",
+                        "In iPhone Settings: General &rarr; About &rarr; scroll down &rarr; Certificate Trust Settings &rarr; Toggle 'IPA Installer Local CA' to ON."
+                    )
                 )
 
                 InstructionStep(
                     stepNumber = "6",
-                    title = "Install Application",
-                    description = "Return to Safari and tap 'Install on iPhone'. iOS will show '“$serverUrl” would like to install...'. Tap Install, and the app will appear on your Home Screen!"
+                    title = AppLocale.t("Установите приложение", "Install Application"),
+                    description = AppLocale.t(
+                        "Вернитесь в Safari и нажмите 'Установить'. Начнется беспроводная установка на экран «Домой»!",
+                        "Return to Safari and tap 'Install'. The application will install directly to your Home Screen!"
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -177,7 +199,10 @@ fun InstructionsDialog(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Crucial: The .ipa file MUST be pre-signed with a valid Apple Developer Certificate matching your iPhone's UDID (Ad-Hoc, Development) or signed with an Enterprise certificate.",
+                            text = AppLocale.t(
+                                "Важно: файл .ipa ДОЛЖЕН быть предварительно подписан действительным сертификатом Apple Developer, соответствующим UDID вашего iPhone (Ad-Hoc, Development) или Enterprise сертификатом.",
+                                "Crucial: The .ipa file MUST be pre-signed with a valid Apple Developer Certificate matching your iPhone's UDID (Ad-Hoc, Development) or signed with an Enterprise certificate."
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = AppleOrange
                         )
@@ -193,7 +218,7 @@ fun InstructionsDialog(
                         .testTag("instructions_done_btn"),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Got It")
+                    Text(AppLocale.t("Понятно", "Got It"))
                 }
             }
         }

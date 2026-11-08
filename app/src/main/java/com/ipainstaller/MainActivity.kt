@@ -8,14 +8,15 @@ import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,10 +34,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Launch
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QrCode
@@ -44,6 +46,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -77,17 +80,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ipainstaller.ui.components.InstructionsDialog
 import com.ipainstaller.ui.components.IpaCard
-import androidx.activity.compose.BackHandler
-import androidx.compose.material.icons.filled.VpnKey
-import com.ipainstaller.ui.screens.AppleIntegrationScreen
 import com.ipainstaller.ui.components.QrCodeDialog
 import com.ipainstaller.ui.components.ServerLogsView
-import androidx.compose.foundation.BorderStroke
+import com.ipainstaller.ui.screens.AppleIntegrationScreen
 import com.ipainstaller.ui.theme.AppleBlue
 import com.ipainstaller.ui.theme.AppleGreen
 import com.ipainstaller.ui.theme.AppleOrange
@@ -149,7 +150,7 @@ fun MainScreen(viewModel: IpaServerViewModel = viewModel()) {
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "IPA Installer",
+                            text = "A-installer",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -169,32 +170,70 @@ fun MainScreen(viewModel: IpaServerViewModel = viewModel()) {
                     }
                 },
                 actions = {
+                    // Language toggle button
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier
+                            .clickable { viewModel.toggleLanguage(context) }
+                            .testTag("toggle_lang_btn")
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Language,
+                                contentDescription = "Language",
+                                modifier = Modifier.size(16.dp),
+                                tint = AppleBlue
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = uiState.currentLanguage.code.uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    // Apple Developer CI/CD secrets exporter
                     IconButton(
                         onClick = { currentScreen = Screen.APPLE_INTEGRATION },
                         modifier = Modifier.testTag("open_apple_integration_btn")
                     ) {
                         Icon(
                             imageVector = Icons.Default.VpnKey,
-                            contentDescription = "Apple & GitHub CI/CD Secrets",
-                            tint = AppleBlue
+                            contentDescription = "Apple & GitHub CI/CD",
+                            tint = ApplePurple
                         )
                     }
+
+                    // Refresh
                     IconButton(
-                        onClick = { viewModel.refreshNetworkAddresses(context) },
+                        onClick = {
+                            viewModel.refreshNetworkAddresses(context)
+                            viewModel.loadIpaList(context)
+                        },
                         modifier = Modifier.testTag("refresh_network_btn")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh Network"
+                            contentDescription = "Обновить"
                         )
                     }
+
+                    // Instructions
                     IconButton(
                         onClick = { viewModel.showInstructions(true) },
                         modifier = Modifier.testTag("open_instructions_btn")
                     ) {
                         Icon(
                             imageVector = Icons.Default.HelpOutline,
-                            contentDescription = "Instructions"
+                            contentDescription = "Инструкция"
                         )
                     }
                 },
@@ -212,9 +251,11 @@ fun MainScreen(viewModel: IpaServerViewModel = viewModel()) {
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. Server Control Card
+            // ========================================================
+            // ШАГ 1: Сервер и Сеть
+            // ========================================================
             item {
-                ServerStatusCard(
+                StepOneServerCard(
                     uiState = uiState,
                     serverUrl = serverUrl,
                     onToggleServer = { viewModel.toggleServer(context) },
@@ -223,138 +264,24 @@ fun MainScreen(viewModel: IpaServerViewModel = viewModel()) {
                 )
             }
 
-            // 2. iOS Trust Certificate Banner
+            // ========================================================
+            // ШАГ 2: Управление приложениями (signed_ipas)
+            // ========================================================
             item {
-                IosSetupBanner(
-                    onOpenInstructions = { viewModel.showInstructions(true) },
-                    onShowCaQr = {
-                        val caUrl = "$serverUrl/ca.mobileconfig"
-                        viewModel.showQrDialog(caUrl)
-                    }
+                StepTwoAppsHeaderCard(
+                    directoryPath = uiState.signedIpasPath,
+                    ipaCount = uiState.ipaList.size,
+                    onImportClick = { filePickerLauncher.launch("*/*") },
+                    onRescan = { viewModel.loadIpaList(context) }
                 )
             }
 
-            // 2b. GitHub Actions CI/CD Secrets Banner
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { currentScreen = Screen.APPLE_INTEGRATION }
-                        .testTag("cicd_secrets_banner"),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = ApplePurple.copy(alpha = 0.12f)
-                    ),
-                    border = BorderStroke(1.dp, ApplePurple.copy(alpha = 0.3f))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .background(ApplePurple.copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.VpnKey,
-                                    contentDescription = null,
-                                    tint = ApplePurple,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "Apple & GitHub CI/CD Secrets",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Export Base64 .p12 & .mobileprovision",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        OutlinedButton(
-                            onClick = { currentScreen = Screen.APPLE_INTEGRATION },
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Configure", style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
-            }
-
-            // 3. IPA Management Header
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(
-                            text = "Pre-Signed IPAs",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "${uiState.ipaList.size} ready to install wirelessly",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilledTonalButton(
-                            onClick = { viewModel.createSampleIpa(context) },
-                            modifier = Modifier.testTag("create_sample_ipa_btn"),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Sample", style = MaterialTheme.typography.labelSmall)
-                        }
-
-                        Button(
-                            onClick = { filePickerLauncher.launch("*/*") },
-                            modifier = Modifier.testTag("import_ipa_btn"),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.UploadFile,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Import .IPA", style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
-            }
-
-            // 4. List of IPAs
+            // Список реально подписанных файлов
             if (uiState.ipaList.isEmpty()) {
                 item {
-                    EmptyIpaState(
-                        onImport = { filePickerLauncher.launch("*/*") },
-                        onCreateSample = { viewModel.createSampleIpa(context) }
+                    EmptyRealIpaState(
+                        signedIpasPath = uiState.signedIpasPath,
+                        onImport = { filePickerLauncher.launch("*/*") }
                     )
                 }
             } else {
@@ -369,7 +296,22 @@ fun MainScreen(viewModel: IpaServerViewModel = viewModel()) {
                 }
             }
 
-            // 5. Server Live Request Logs
+            // ========================================================
+            // ШАГ 3: Установка на iPhone
+            // ========================================================
+            item {
+                StepThreeInstallationCard(
+                    serverUrl = serverUrl,
+                    isServerRunning = uiState.serverState == ServerState.RUNNING,
+                    onOpenInstructions = { viewModel.showInstructions(true) },
+                    onShowCaQr = {
+                        val caUrl = "$serverUrl/ca.mobileconfig"
+                        viewModel.showQrDialog(caUrl)
+                    }
+                )
+            }
+
+            // Журнал трафика сервера
             item {
                 ServerLogsView(
                     logs = uiState.serverLogs,
@@ -400,8 +342,11 @@ fun MainScreen(viewModel: IpaServerViewModel = viewModel()) {
     }
 }
 
+/**
+ * ШАГ 1: Карточка сервера и выбора сети Wi-Fi
+ */
 @Composable
-private fun ServerStatusCard(
+private fun StepOneServerCard(
     uiState: ServerUiState,
     serverUrl: String,
     onToggleServer: () -> Unit,
@@ -425,19 +370,19 @@ private fun ServerStatusCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("server_status_card"),
+            .testTag("step_1_server_card"),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(20.dp)
         ) {
-            // Header: Status Indicator & Interface Picker
+            // Заголовок Шага 1
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -446,30 +391,56 @@ private fun ServerStatusCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
+                            .size(32.dp)
                             .clip(CircleShape)
-                            .background(statusColor)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = when (uiState.serverState) {
-                            ServerState.RUNNING -> "HTTPS Server Online"
-                            ServerState.STARTING -> "Starting TLS Server..."
-                            ServerState.ERROR -> "Server Error"
-                            ServerState.STOPPED -> "Server Offline"
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = statusColor
-                    )
+                            .background(AppleBlue),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "1",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Шаг 1: Сервер и Сеть",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(statusColor)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = when (uiState.serverState) {
+                                    ServerState.RUNNING -> "Сервер работает (HTTPS онлайн)"
+                                    ServerState.STARTING -> "Запуск TLS сервера..."
+                                    ServerState.ERROR -> "Ошибка запуска сервера"
+                                    ServerState.STOPPED -> "Сервер остановлен"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = statusColor,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
                 }
 
-                // IP Interface Selector Dropdown
+                // Выбор сетевого интерфейса (Wi-Fi)
                 Box {
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.clickable { isDropdownOpen = true }
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .clickable { isDropdownOpen = true }
+                            .testTag("select_network_ip_btn")
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -478,12 +449,12 @@ private fun ServerStatusCard(
                             Icon(
                                 imageVector = Icons.Default.Wifi,
                                 contentDescription = null,
-                                modifier = Modifier.size(14.dp),
+                                modifier = Modifier.size(16.dp),
                                 tint = AppleBlue
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = uiState.selectedAddress?.ip ?: "No IP",
+                                text = uiState.selectedAddress?.ip ?: "Нет IP",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.SemiBold
@@ -500,7 +471,11 @@ private fun ServerStatusCard(
                                 text = {
                                     Column {
                                         Text(addr.displayName, fontWeight = FontWeight.SemiBold)
-                                        Text(addr.ip, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                                        Text(
+                                            addr.ip,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontFamily = FontFamily.Monospace
+                                        )
                                     }
                                 },
                                 onClick = {
@@ -515,16 +490,23 @@ private fun ServerStatusCard(
 
             if (uiState.errorMessage != null) {
                 Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = uiState.errorMessage,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = AppleRed
-                )
+                Surface(
+                    color = AppleRed.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = uiState.errorMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AppleRed,
+                        modifier = Modifier.padding(10.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // URL Bar when running
+            // Панель адреса сервера при активном состоянии
             AnimatedVisibility(visible = isRunning) {
                 Column {
                     Surface(
@@ -541,7 +523,7 @@ private fun ServerStatusCard(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Safari Access URL",
+                                    text = "Адрес для Safari на iPhone:",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -561,13 +543,13 @@ private fun ServerStatusCard(
                                     onClick = {
                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                         clipboard.setPrimaryClip(ClipData.newPlainText("Server URL", serverUrl))
-                                        Toast.makeText(context, "URL copied!", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Адрес скопирован в буфер!", Toast.LENGTH_SHORT).show()
                                     },
                                     modifier = Modifier.testTag("copy_server_url_btn")
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.ContentCopy,
-                                        contentDescription = "Copy URL",
+                                        contentDescription = "Скопировать",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -579,7 +561,7 @@ private fun ServerStatusCard(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.QrCode,
-                                        contentDescription = "QR Code",
+                                        contentDescription = "QR-код",
                                         tint = AppleBlue,
                                         modifier = Modifier.size(20.dp)
                                     )
@@ -591,14 +573,14 @@ private fun ServerStatusCard(
                                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(serverUrl))
                                             context.startActivity(intent)
                                         } catch (e: Exception) {
-                                            Toast.makeText(context, "Cannot open browser", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Не удалось открыть браузер", Toast.LENGTH_SHORT).show()
                                         }
                                     },
                                     modifier = Modifier.testTag("open_browser_btn")
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Launch,
-                                        contentDescription = "Open in Browser",
+                                        contentDescription = "Открыть в браузере",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -611,12 +593,12 @@ private fun ServerStatusCard(
                 }
             }
 
-            // Big Start/Stop Server Toggle Button
+            // Большая главная кнопка запуска / остановки сервера
             Button(
                 onClick = onToggleServer,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
+                    .height(54.dp)
                     .testTag("toggle_server_btn"),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isRunning) AppleRed else AppleGreen
@@ -626,11 +608,11 @@ private fun ServerStatusCard(
                 Icon(
                     imageVector = if (isRunning) Icons.Default.Stop else Icons.Default.PlayArrow,
                     contentDescription = null,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(24.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = if (isRunning) "Stop HTTPS Server" else "Start HTTPS Server",
+                    text = if (isRunning) "Остановить сервер" else "Запустить сервер",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -639,78 +621,164 @@ private fun ServerStatusCard(
     }
 }
 
+/**
+ * ШАГ 2: Карточка управления приложениями и выбора .ipa
+ */
 @Composable
-private fun IosSetupBanner(
-    onOpenInstructions: () -> Unit,
-    onShowCaQr: () -> Unit
+private fun StepTwoAppsHeaderCard(
+    directoryPath: String,
+    ipaCount: Int,
+    onImportClick: () -> Unit,
+    onRescan: () -> Unit
 ) {
+    val context = LocalContext.current
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("ios_setup_banner"),
-        shape = RoundedCornerShape(16.dp),
+            .testTag("step_2_apps_card"),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(20.dp)
         ) {
+            // Заголовок Шага 2
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(AppleBlue.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(ApplePurple),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "2",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Шаг 2: Управление приложениями",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Папка signed_ipas (найдено файлов: $ipaCount)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onRescan,
+                    modifier = Modifier.testTag("rescan_ipas_btn")
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Security,
-                        contentDescription = null,
-                        tint = AppleBlue,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = "iPhone SSL Certificate Setup",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Trust local CA once to allow itms-services",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Обновить список",
+                        tint = AppleBlue
                     )
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                OutlinedButton(
-                    onClick = onOpenInstructions,
-                    modifier = Modifier.testTag("view_guide_btn"),
-                    shape = RoundedCornerShape(8.dp)
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Кнопка импорта IPA файла
+            Button(
+                onClick = onImportClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .testTag("import_ipa_btn"),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.UploadFile,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Выбрать .IPA файл для установки",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Отображение пути к папке signed_ipas
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Guide", style = MaterialTheme.typography.labelSmall)
+                    Icon(
+                        imageVector = Icons.Default.Folder,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = ApplePurple
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = directoryPath.ifEmpty { "signed_ipas" },
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("signed_ipas path", directoryPath))
+                            Toast.makeText(context, "Путь к папке скопирован!", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.size(26.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Скопировать путь",
+                            tint = ApplePurple,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+/**
+ * Пустое состояние при отсутствии файлов в signed_ipas
+ */
 @Composable
-private fun EmptyIpaState(
-    onImport: () -> Unit,
-    onCreateSample: () -> Unit
+private fun EmptyRealIpaState(
+    signedIpasPath: String,
+    onImport: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -720,47 +788,209 @@ private fun EmptyIpaState(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(32.dp),
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "📦",
-                style = MaterialTheme.typography.headlineLarge
+                style = MaterialTheme.typography.headlineMedium
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "No iOS Apps Added",
-                style = MaterialTheme.typography.titleMedium,
+                text = "В папке signed_ipas пока нет файлов",
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Import pre-signed .ipa files from device storage, or generate a sample test IPA to try the installation flow right now.",
+                text = "Сервер показывает только реальные подписанные приложения из папки:\n$signedIpasPath\nНажмите кнопку ниже, чтобы добавить свой .ipa файл.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(18.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedButton(
-                    onClick = onCreateSample,
-                    shape = RoundedCornerShape(10.dp)
+            Spacer(modifier = Modifier.height(14.dp))
+            FilledTonalButton(
+                onClick = onImport,
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.UploadFile,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Выбрать файл .IPA")
+            }
+        }
+    }
+}
+
+/**
+ * ШАГ 3: Карточка с инструкцией по установке на iPhone и SSL-сертификату
+ */
+@Composable
+private fun StepThreeInstallationCard(
+    serverUrl: String,
+    isServerRunning: Boolean,
+    onOpenInstructions: () -> Unit,
+    onShowCaQr: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("step_3_install_card"),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            // Заголовок Шага 3
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(AppleGreen),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text("Create Test IPA")
+                    Text(
+                        text = "3",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
-                Button(
-                    onClick = onImport,
-                    shape = RoundedCornerShape(10.dp)
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "Шаг 3: Установка на iPhone",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Инструкция по установке через Safari (itms-services)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 3 понятных шага на русском языке
+            InstallationStepRow(
+                number = "1",
+                text = "Подключите iPhone к той же Wi-Fi сети, что и этот Android-телефон."
+            )
+            InstallationStepRow(
+                number = "2",
+                text = "Откройте браузер Safari и перейдите по адресу сервера (или отсканируйте QR-код)."
+            )
+            InstallationStepRow(
+                number = "3",
+                text = "Нажмите «Установить» возле нужного приложения для запуска OTA-установки на экран «Домой»."
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Кнопка вызова подробной инструкции по SSL-сертификату
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilledTonalButton(
+                    onClick = onOpenInstructions,
+                    modifier = Modifier
+                        .weight(1.3f)
+                        .height(46.dp)
+                        .testTag("open_ssl_guide_btn"),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Import .IPA")
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = AppleBlue
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Инструкция по SSL-сертификату",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                if (isServerRunning) {
+                    OutlinedButton(
+                        onClick = onShowCaQr,
+                        modifier = Modifier
+                            .weight(0.7f)
+                            .height(46.dp)
+                            .testTag("show_ca_qr_btn"),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCode,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "QR профиля",
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun InstallationStepRow(
+    number: String,
+    text: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Surface(
+            color = AppleBlue.copy(alpha = 0.15f),
+            shape = CircleShape,
+            modifier = Modifier.size(22.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = number,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AppleBlue,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
     }
 }

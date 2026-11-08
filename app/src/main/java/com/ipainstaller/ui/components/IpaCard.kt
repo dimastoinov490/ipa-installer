@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
 import android.widget.Toast
+import com.ipainstaller.AppLocale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -153,34 +154,40 @@ fun IpaCard(
             ) {
                 MetaPill(text = "v${ipa.bundleVersion}", backgroundColor = MaterialTheme.colorScheme.surfaceVariant)
                 MetaPill(text = ipa.formattedSize, backgroundColor = AppleOrange.copy(alpha = 0.15f), textColor = AppleOrange)
-                MetaPill(text = "Pre-Signed", backgroundColor = AppleGreen.copy(alpha = 0.15f), textColor = AppleGreen)
+                MetaPill(text = AppLocale.t("Подписан", "Pre-Signed"), backgroundColor = AppleGreen.copy(alpha = 0.15f), textColor = AppleGreen)
             }
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Action buttons row
+            // Action buttons row: Скопировать ссылку, QR-код, Удалить
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 FilledTonalButton(
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(ClipData.newPlainText("iOS Install URL", itmsUrl))
-                        Toast.makeText(context, "Copied itms-services URL!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Ссылка itms-services скопирована!", Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier
-                        .weight(1f)
+                        .weight(1.3f)
                         .testTag("copy_itms_url_${ipa.fileName}"),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Share,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Copy Link", maxLines = 1)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Скопировать ссылку",
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
 
                 OutlinedButton(
@@ -195,10 +202,37 @@ fun IpaCard(
                     Icon(
                         imageVector = Icons.Default.QrCode,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Install QR", maxLines = 1)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "QR-код",
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = onDelete,
+                    modifier = Modifier
+                        .weight(0.9f)
+                        .testTag("delete_ipa_${ipa.fileName}"),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Удалить",
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1
+                    )
                 }
             }
         }

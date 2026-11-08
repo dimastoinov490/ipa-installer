@@ -49,10 +49,25 @@ object CertificateManager {
     private const val KEY_ALIAS = "ipaserver"
     private const val CA_ALIAS = "rootca"
 
+    private val bcProvider: BouncyCastleProvider by lazy {
+        ensureBouncyCastle()
+        BouncyCastleProvider()
+    }
+
     init {
-        // Register BouncyCastle Provider if not yet registered
-        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-            Security.addProvider(BouncyCastleProvider())
+        ensureBouncyCastle()
+    }
+
+    private fun ensureBouncyCastle() {
+        try {
+            Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
+        } catch (_: Exception) {}
+        try {
+            Security.insertProviderAt(BouncyCastleProvider(), 1)
+        } catch (_: Exception) {
+            if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+                Security.addProvider(BouncyCastleProvider())
+            }
         }
     }
 
@@ -66,6 +81,7 @@ object CertificateManager {
      * - Subject Alternative Names (SAN) matching IP address and DNS name
      */
     fun getOrCreateSslBundle(context: Context, hostIp: String): SslBundle {
+        ensureBouncyCastle()
         val certsDir = File(context.filesDir, "certs").apply { mkdirs() }
         val caKeyFile = File(certsDir, "ca.key")
         val caCertFile = File(certsDir, "ca.crt")
@@ -169,12 +185,12 @@ object CertificateManager {
         )
 
         val signer = JcaContentSignerBuilder("SHA256withRSA")
-            .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+            .setProvider(bcProvider)
             .build(keyPair.private)
 
         val certHolder = builder.build(signer)
         val cert = JcaX509CertificateConverter()
-            .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+            .setProvider(bcProvider)
             .getCertificate(certHolder)
 
         return Pair(keyPair, cert)
@@ -235,12 +251,12 @@ object CertificateManager {
         builder.addExtension(Extension.subjectAlternativeName, false, subjectAltNames)
 
         val signer = JcaContentSignerBuilder("SHA256withRSA")
-            .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+            .setProvider(bcProvider)
             .build(caKeyPair.private)
 
         val certHolder = builder.build(signer)
         return JcaX509CertificateConverter()
-            .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+            .setProvider(bcProvider)
             .getCertificate(certHolder)
     }
 
